@@ -166,3 +166,50 @@ def test_restore_failed_message_shown_when_execution_state_cannot_be_restored(
             conversation_utils.delete_conversation(conversation_id)
         except Exception:
             pass
+
+
+@pytest.mark.workflow
+@pytest.mark.conversations
+@pytest.mark.ui
+@pytest.mark.parametrize(
+    "execution_status",
+    ["RECOVERING", "NEEDS_TRIAGE"],
+    ids=["recovering", "needs_triage"],
+)
+def test_running_like_execution_status_shows_in_progress_thought_after_reload(
+    page, test_workflow, conversation_utils, execution_status
+):
+    """A workflow turn whose executionStatus is RECOVERING or NEEDS_TRIAGE is treated
+    like a running turn after a reload: the In Progress thought card is shown and the
+    restore-failed message is not.
+
+    The statuses have no producer yet and the pinned SDK does not know them, so the
+    GET v1/conversations/{id} response is intercepted with a schema-valid payload
+    (see `intercept_conversation_with_execution_status`); the shipped frontend still
+    does all the rendering.
+    """
+    created_conv = conversation_utils.create_conversation(
+        initial_assistant_id=test_workflow.id,
+        is_workflow_conversation=True,
+    )
+    conversation_id = created_conv["id"]
+
+    try:
+        chat_page = ChatPage(page)
+        chat_page.intercept_conversation_with_execution_status(
+            conversation_id,
+            test_workflow.id,
+            execution_status,
+            thoughts=[
+                {"id": "s1", "message": "", "in_progress": True, "interrupted": False}
+            ],
+        )
+        chat_page.navigate_to(conversation_id)
+
+        chat_page.should_have_in_progress_thought_visible()
+        chat_page.should_not_have_workflow_restore_failed_message()
+    finally:
+        try:
+            conversation_utils.delete_conversation(conversation_id)
+        except Exception:
+            pass
