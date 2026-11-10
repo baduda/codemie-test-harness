@@ -2253,6 +2253,16 @@ class ChatPage(BasePage):
         return self
 
     @step
+    def should_not_have_in_progress_thought_visible(self, timeout: int = 15000):
+        """Wait for the assistant message and verify no thought is in progress."""
+        assistant_turn = self.chat_history_container.locator(
+            '[data-onboarding="chat-ai-message"]'
+        )
+        expect(assistant_turn.last).to_be_visible(timeout=timeout)
+        expect(self.in_progress_thought_status).to_have_count(0, timeout=timeout)
+        return self
+
+    @step
     def should_have_non_blank_workflow_progress(self, timeout: int = 15000):
         """Verify the answer node shows workflow progress rather than being empty (AC-4).
 
